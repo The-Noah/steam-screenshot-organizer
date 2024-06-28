@@ -8,3 +8,12 @@ authors = ["Noah Dunbar <noah@noahdunbar.com>"]
 reqwest = { version = "0.12.5", features = ["blocking"] }
 serde = { version = "1.0.203", features = ["derive"] }
 serde-xml-rs = "0.6.0"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+strip = "symbols"
+debug = false
+panic = "abort"
+debug-assertions = false
