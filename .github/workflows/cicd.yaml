@@ -83,7 +83,7 @@ jobs:
       - name: Archive release
         uses: actions/upload-artifact@v4
         with:
-          name: release
+          name: steam-screenshot-organizer${{ steps.get_extension.outputs.extension }}
           path: target/release/steam-screenshot-organizer${{ steps.get_extension.outputs.extension }}
 
       - name: Release
