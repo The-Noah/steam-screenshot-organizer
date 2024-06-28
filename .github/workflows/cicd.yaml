@@ -74,11 +74,12 @@ jobs:
           override: true
 
       - name: Build
-        run: cargo build --verbose --release
+        run: cargo build --verbose --release --target ${{ matrix.target }}
 
-      - name: Get binary extension
+      - name: Get Windows binary extension
         id: get_extension
-        run: echo "::set-output name=extension::$(if [ ${{ matrix.os }} == 'windows-latest' ]; then echo '.exe'; fi)"
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: echo "::set-output name=extension::.exe"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
