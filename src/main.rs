@@ -23,6 +23,53 @@ struct GamesList {
 }
 
 fn main() {
+  let args: Vec<String> = std::env::args().collect();
+  let args = &args[1..];
+
+  if args.len() == 0 {
+    run();
+  } else {
+    match args[0].as_str() {
+      "help" | "--help" | "-h" => {
+        println!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        println!();
+        println!("Usage:");
+        println!("  {} [command]", env!("CARGO_PKG_NAME"));
+        println!();
+        println!("Commands:");
+        println!("  help     Display this help message.");
+        println!("  debug    Display debug information.");
+      }
+      "debug" => {
+        let steam_id = get_steam_id();
+        let steam_id3 = if let Some(steam_id) = steam_id { Some(steam_id_to_id3(steam_id)) } else { None };
+
+        println!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        println!();
+        println!(
+          "Steam ID: {}",
+          if let Some(steam_id) = get_steam_id() {
+            steam_id.to_string()
+          } else {
+            "Not found".to_string()
+          }
+        );
+        println!("Steam screenshots directory: {}", get_screenshots_directory().display());
+        println!(
+          "Steam library: {} games found",
+          if let Some(steam_id3) = steam_id3 {
+            get_steam_library(&steam_id3).games.games.len()
+          } else {
+            0
+          }
+        );
+      }
+      _ => println!("Invalid command."),
+    }
+  }
+}
+
+fn run() {
   let steam_id = get_steam_id();
 
   if steam_id.is_none() {
@@ -30,7 +77,7 @@ fn main() {
     return;
   }
 
-  let library = get_steam_library(&format!("[U:1:{}]", steam_id.unwrap()));
+  let library = get_steam_library(&steam_id_to_id3(steam_id.unwrap()));
 
   let screenshots = get_screenshots();
 
@@ -81,6 +128,10 @@ fn get_steam_id() -> Option<u64> {
   }
 
   None
+}
+
+fn steam_id_to_id3(steam_id: u64) -> String {
+  format!("[U:1:{}]", steam_id)
 }
 
 fn get_steam_library(steam_id3: &String) -> GamesList {
