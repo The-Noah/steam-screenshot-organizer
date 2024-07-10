@@ -95,6 +95,8 @@ fn run() {
 
   let screenshots = get_screenshots();
 
+  println!("Found {} screenshots", screenshots.len());
+
   for screenshot in screenshots {
     let game_id = screenshot.file_name().unwrap().to_string_lossy().split("_").next().unwrap().parse::<u64>().unwrap();
 
