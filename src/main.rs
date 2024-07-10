@@ -99,7 +99,10 @@ fn run() {
 
     // move screenshot to game directory
     let new_screenshot = game_directory.join(screenshot.file_name().unwrap());
-    fs::rename(screenshot, new_screenshot).unwrap();
+    if let Err(error) = fs::rename(screenshot, new_screenshot) {
+      eprintln!("Error moving {}: {}", screenshot.file_name().unwrap().to_string_lossy(), error);
+      continue;
+    }
 
     screenshots_moved += 1;
 
