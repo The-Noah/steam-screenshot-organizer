@@ -27,7 +27,7 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-          components: rustfmt
+          components: rustfmt, clippy
           default: true
           override: true
 
@@ -39,6 +39,9 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt -- --check
+
+      - name: Check clippy
+        run: cargo clippy -- -D warnings
 
   build_release:
     needs: build_and_test
