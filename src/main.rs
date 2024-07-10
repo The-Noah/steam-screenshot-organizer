@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::mpsc};
+use std::{fs, path::PathBuf, sync::mpsc};
 
 use notify::{Config, RecommendedWatcher, Watcher};
 use serde::Deserialize;
@@ -68,7 +68,7 @@ fn main() {
         );
         println!("Steam screenshots directory: {}", get_screenshots_directory().display());
         println!(
-          "Steam library: {} games found",
+          "Online Steam library: {} games found",
           if let Some(steam_id3) = steam_id3 {
             get_steam_library(&steam_id3).games.games.len()
           } else {
@@ -84,40 +84,51 @@ fn main() {
 }
 
 fn run() {
-  let steam_id = get_steam_id();
-
-  if steam_id.is_none() {
-    println!("Steam ID not found.");
-    return;
-  }
-
-  let library = get_steam_library(&steam_id_to_id3(steam_id.unwrap()));
-
   let screenshots = get_screenshots();
 
   println!("Found {} screenshots", screenshots.len());
 
+  let steam_id = get_steam_id();
+  let mut online_library = None;
+
   for screenshot in screenshots {
     let game_id = screenshot.file_name().unwrap().to_string_lossy().split('_').next().unwrap().parse::<u64>().unwrap();
 
-    for game in library.games.games.iter() {
-      if game.app_id == game_id {
-        // ensure game directory exists
-        let game_directory = get_screenshots_directory().join(&game.name);
-        if !game_directory.exists() {
-          std::fs::create_dir(&game_directory).unwrap();
-        }
-
-        // move screenshot to game directory
-        let new_screenshot = game_directory.join(screenshot.file_name().unwrap());
-        std::fs::rename(&screenshot, &new_screenshot).unwrap();
-
-        println!("Moved {} to {}", screenshot.file_name().unwrap().to_string_lossy(), game.name);
-
-        break;
+    let game_name = if let Some(game_name) = get_steam_app_info(game_id) {
+      println!("Game found locally for {}", game_id);
+      game_name
+    } else {
+      if steam_id.is_some() && online_library.is_none() {
+        online_library = Some(get_steam_library(&steam_id_to_id3(steam_id.unwrap())));
       }
+
+      if let Some(online_library) = &online_library {
+        let game = online_library.games.games.iter().find(|game| game.app_id == game_id);
+
+        if let Some(game) = game {
+          game.name.clone()
+        } else {
+          continue;
+        }
+      } else {
+        continue;
+      }
+    };
+
+    // ensure game directory exists
+    let game_directory = get_screenshots_directory().join(&game_name);
+    if !game_directory.exists() {
+      fs::create_dir(&game_directory).unwrap();
     }
+
+    // move screenshot to game directory
+    let new_screenshot = game_directory.join(screenshot.file_name().unwrap());
+    fs::rename(&screenshot, new_screenshot).unwrap();
+
+    println!("Moved {} to {}", screenshot.file_name().unwrap().to_string_lossy(), &game_name);
   }
+
+  println!("Done");
 }
 
 fn watch() {
@@ -266,4 +277,75 @@ fn hide_console_window() {
 #[cfg(target_os = "linux")]
 fn hide_console_window() {
   todo!("hide_console_window");
+}
+
+#[cfg(target_os = "windows")]
+fn get_steam_app_directories() -> Vec<PathBuf> {
+  use std::path::Path;
+
+  use windows::Win32::Storage::FileSystem::GetLogicalDrives;
+
+  let drives = unsafe { GetLogicalDrives() };
+  let mut drive_id = 0b0000001;
+
+  let mut directories = vec![PathBuf::new().join("C:\\").join("Program Files (x86)").join("Steam").join("steamapps")];
+  let mut drive_letters = vec![];
+
+  for i in 0..26 {
+    let drive_letter = char::from(b'A' + i);
+
+    if drives & drive_id != 0 && drive_letter != 'C' {
+      let drive_path = PathBuf::new().join(drive_letter.to_string() + ":\\").join("SteamLibrary").join("steamapps");
+
+      if Path::exists(&drive_path) {
+        directories.push(drive_path);
+      }
+
+      drive_letters.push(drive_letter);
+    }
+
+    drive_id <<= 1;
+  }
+
+  directories
+}
+
+#[cfg(target_os = "linux")]
+fn get_steam_app_directories() {
+  todo!("get_steam_app_directories");
+}
+
+fn get_steam_app_info(app_id: u64) -> Option<String> {
+  let directories = get_steam_app_directories();
+
+  for directory in directories {
+    let app_info = directory.join(format!("appmanifest_{}.acf", app_id));
+
+    if !app_info.exists() {
+      continue;
+    }
+
+    let app_info = fs::read_to_string(app_info);
+
+    if let Err(error) = app_info {
+      eprintln!("Error reading app info: {}", error);
+      break;
+    }
+
+    let app_info = app_info.unwrap();
+
+    let app_info = app_info.split('\n').collect::<Vec<_>>();
+
+    for line in app_info {
+      let line = line.trim();
+
+      if line.starts_with("\"name\"") {
+        let name = line.split('"').collect::<Vec<_>>()[3];
+
+        return Some(name.to_string());
+      }
+    }
+  }
+
+  None
 }
