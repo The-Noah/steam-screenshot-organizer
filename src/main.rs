@@ -94,7 +94,10 @@ fn run() {
     // ensure game directory exists
     let game_directory = steam::get_screenshots_directory().join(&game_name);
     if !game_directory.exists() {
-      fs::create_dir(&game_directory).unwrap();
+      if let Err(error) = fs::create_dir(&game_directory) {
+        eprintln!("Error creating game directory {}: {}", game_directory.display(), error);
+        continue;
+      }
     }
 
     // move screenshot to game directory
