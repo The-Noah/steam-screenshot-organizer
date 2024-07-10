@@ -65,14 +65,16 @@ fn run() {
   let steam_id = steam::get_id();
   let mut online_library = None;
 
-  for screenshot in screenshots {
+  let mut screenshots_moved = 0;
+
+  for screenshot in &screenshots {
     let game_id = screenshot.file_name().unwrap().to_string_lossy().split('_').next().unwrap().parse::<u64>().unwrap();
 
     let game_name = if let Some(game_name) = steam::get_app_info(game_id) {
-      println!("Game found locally for {}", game_id);
       game_name
     } else {
       if steam_id.is_some() && online_library.is_none() {
+        println!("Fetching online library");
         online_library = Some(steam::get_online_library(&steam::id_to_id3(steam_id.unwrap())));
       }
 
@@ -97,12 +99,14 @@ fn run() {
 
     // move screenshot to game directory
     let new_screenshot = game_directory.join(screenshot.file_name().unwrap());
-    fs::rename(&screenshot, new_screenshot).unwrap();
+    fs::rename(screenshot, new_screenshot).unwrap();
+
+    screenshots_moved += 1;
 
     println!("Moved {} to {}", screenshot.file_name().unwrap().to_string_lossy(), &game_name);
   }
 
-  println!("Done");
+  println!("Moved {}/{} screenshots", screenshots_moved, screenshots.len());
 }
 
 fn watch() {
