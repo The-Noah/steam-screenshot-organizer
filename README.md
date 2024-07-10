@@ -4,7 +4,7 @@ This is a simple script that organizes your Steam screenshots into folders based
 
 ## Usage
 
-This only works if your Steam activity is set to public. If it is not, you can change it by going to your profile, clicking on `Edit Profile` -> `Privacy Settings` -> `Game Details` -> `Public`. Your screenshot folder must also be in the default location. If it is not, you can change it by going to `Steam` -> `Settings` -> `In-Game` -> `Screenshot Folder`.
+Your screenshot folder is automatically detected from Steam, which you can change by going to `Steam` -> `Settings` -> `In-Game` -> `Screenshot Folder`.
 
 1. Download the [latest release](https://github.com/The-Noah/steam-screenshot-organizer/releases/latest/download/steam-screenshot-organizer.exe)
 2. Place the executable in any directory
