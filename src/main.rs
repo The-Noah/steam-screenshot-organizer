@@ -1,5 +1,6 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::mpsc};
 
+use notify::{Config, RecommendedWatcher, Watcher};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -26,7 +27,7 @@ fn main() {
   let args: Vec<String> = std::env::args().collect();
   let args = &args[1..];
 
-  if args.len() == 0 {
+  if args.len() == 0 || args[0] == "run" {
     run();
   } else {
     match args[0].as_str() {
@@ -39,6 +40,8 @@ fn main() {
         println!("Commands:");
         println!("  help     Display this help message.");
         println!("  debug    Display debug information.");
+        println!("  run      Run the program.");
+        println!("  watch    Run the program in watch mode.");
       }
       "debug" => {
         let steam_id = get_steam_id();
@@ -63,6 +66,24 @@ fn main() {
             0
           }
         );
+      }
+      "watch" => {
+        run();
+
+        let (tx, rx) = mpsc::channel();
+
+        let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
+
+        watcher.watch(&get_screenshots_directory(), notify::RecursiveMode::NonRecursive).unwrap();
+
+        for event in rx {
+          match event {
+            Ok(_) => {
+              run();
+            }
+            Err(e) => eprintln!("Watch error: {:?}", e),
+          }
+        }
       }
       _ => println!("Invalid command."),
     }
@@ -96,7 +117,7 @@ fn run() {
         let new_screenshot = game_directory.join(screenshot.file_name().unwrap());
         std::fs::rename(&screenshot, &new_screenshot).unwrap();
 
-        println!("Moved {:?} to {:?}", screenshot, game.name);
+        println!("Moved {} to {}", screenshot.file_name().unwrap().to_string_lossy(), game.name);
 
         break;
       }
