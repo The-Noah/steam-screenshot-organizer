@@ -1,6 +1,4 @@
-// #![windows_subsystem = "windows"]
-
-use std::{fs, path::PathBuf, sync::mpsc};
+use std::{path::PathBuf, sync::mpsc};
 
 use notify::{Config, RecommendedWatcher, Watcher};
 use serde::Deserialize;
@@ -49,6 +47,10 @@ fn main() {
         println!("  debug    Display debug information.");
         println!("  run      Run the program.");
         println!("  watch    Run the program in watch mode.");
+        println!();
+        println!("Defaults:");
+        println!("  When executed inside a console, the run command is executed.");
+        println!("  When executed outside a console, the watch command is executed.");
       }
       "debug" => {
         let steam_id = get_steam_id();
