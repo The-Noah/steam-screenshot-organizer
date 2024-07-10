@@ -27,7 +27,7 @@ fn main() {
   let args: Vec<String> = std::env::args().collect();
   let args = &args[1..];
 
-  if args.len() == 0 {
+  if args.is_empty() {
     if has_console_window() {
       run();
     } else {
@@ -54,7 +54,7 @@ fn main() {
       }
       "debug" => {
         let steam_id = get_steam_id();
-        let steam_id3 = if let Some(steam_id) = steam_id { Some(steam_id_to_id3(steam_id)) } else { None };
+        let steam_id3 = steam_id.map(steam_id_to_id3);
 
         println!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         println!();
@@ -98,7 +98,7 @@ fn run() {
   println!("Found {} screenshots", screenshots.len());
 
   for screenshot in screenshots {
-    let game_id = screenshot.file_name().unwrap().to_string_lossy().split("_").next().unwrap().parse::<u64>().unwrap();
+    let game_id = screenshot.file_name().unwrap().to_string_lossy().split('_').next().unwrap().parse::<u64>().unwrap();
 
     for game in library.games.games.iter() {
       if game.app_id == game_id {
@@ -143,7 +143,7 @@ fn get_steam_id() -> Option<u64> {
   let directories = std::fs::read_dir(r#"C:\Program Files (x86)\Steam\userdata"#).unwrap().collect::<Vec<_>>();
 
   for directory in directories {
-    if !directory.is_ok() {
+    if directory.is_err() {
       continue;
     }
 
@@ -170,7 +170,7 @@ fn steam_id_to_id3(steam_id: u64) -> String {
 }
 
 fn get_steam_library(steam_id3: &String) -> GamesList {
-  let games = reqwest::blocking::get(&format!("https://steamcommunity.com/profiles/{}/games?xml=1", steam_id3))
+  let games = reqwest::blocking::get(format!("https://steamcommunity.com/profiles/{}/games?xml=1", steam_id3))
     .unwrap()
     .text()
     .unwrap();
@@ -182,7 +182,7 @@ fn get_screenshots() -> Vec<PathBuf> {
   let mut files = Vec::new();
 
   for file in std::fs::read_dir(get_screenshots_directory()).unwrap().collect::<Vec<_>>() {
-    if !file.is_ok() {
+    if file.is_err() {
       continue;
     }
 
@@ -199,6 +199,7 @@ fn get_screenshots() -> Vec<PathBuf> {
 }
 
 fn get_screenshots_directory() -> PathBuf {
+  #[allow(deprecated)]
   PathBuf::from(std::env::home_dir().unwrap().to_string_lossy().to_string())
     .join("Pictures")
     .join("Steam Screenshots")
