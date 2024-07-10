@@ -198,6 +198,36 @@ fn get_screenshots() -> Vec<PathBuf> {
   files
 }
 
+#[cfg(target_os = "windows")]
+fn get_screenshots_directory() -> PathBuf {
+  let steam_id = get_steam_id();
+
+  if let Some(steam_id) = steam_id {
+    let steam_config_path = PathBuf::new()
+      .join(r#"C:\Program Files (x86)\Steam\userdata"#)
+      .join(steam_id.to_string())
+      .join("config")
+      .join("localconfig.vdf");
+    let steam_config = std::fs::read_to_string(steam_config_path);
+
+    if let Ok(steam_config) = steam_config {
+      for line in steam_config.lines() {
+        let line = line.trim();
+
+        if line.starts_with("\"InGameOverlayScreenshotSaveUncompressedPath\"") {
+          return std::path::absolute(PathBuf::from(line.split('"').nth(3).unwrap())).unwrap();
+        }
+      }
+    }
+  }
+
+  #[allow(deprecated)]
+  PathBuf::from(std::env::home_dir().unwrap().to_string_lossy().to_string())
+    .join("Pictures")
+    .join("Steam Screenshots")
+}
+
+#[cfg(target_os = "linux")]
 fn get_screenshots_directory() -> PathBuf {
   #[allow(deprecated)]
   PathBuf::from(std::env::home_dir().unwrap().to_string_lossy().to_string())
