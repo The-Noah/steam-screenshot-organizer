@@ -1,4 +1,6 @@
-use std::{path::PathBuf, sync::mpsc};
+// #![windows_subsystem = "windows"]
+
+use std::{fs, path::PathBuf, sync::mpsc};
 
 use notify::{Config, RecommendedWatcher, Watcher};
 use serde::Deserialize;
@@ -27,8 +29,13 @@ fn main() {
   let args: Vec<String> = std::env::args().collect();
   let args = &args[1..];
 
-  if args.len() == 0 || args[0] == "run" {
-    run();
+  if args.len() == 0 {
+    if has_console_window() {
+      run();
+    } else {
+      hide_console_window();
+      watch();
+    }
   } else {
     match args[0].as_str() {
       "help" | "--help" | "-h" => {
@@ -67,24 +74,8 @@ fn main() {
           }
         );
       }
-      "watch" => {
-        run();
-
-        let (tx, rx) = mpsc::channel();
-
-        let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
-
-        watcher.watch(&get_screenshots_directory(), notify::RecursiveMode::NonRecursive).unwrap();
-
-        for event in rx {
-          match event {
-            Ok(_) => {
-              run();
-            }
-            Err(e) => eprintln!("Watch error: {:?}", e),
-          }
-        }
-      }
+      "run" => run(),
+      "watch" => watch(),
       _ => println!("Invalid command."),
     }
   }
@@ -121,6 +112,25 @@ fn run() {
 
         break;
       }
+    }
+  }
+}
+
+fn watch() {
+  run();
+
+  let (tx, rx) = mpsc::channel();
+
+  let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
+
+  watcher.watch(&get_screenshots_directory(), notify::RecursiveMode::NonRecursive).unwrap();
+
+  for event in rx {
+    match event {
+      Ok(_) => {
+        run();
+      }
+      Err(e) => eprintln!("Watch error: {:?}", e),
     }
   }
 }
@@ -188,4 +198,37 @@ fn get_screenshots_directory() -> PathBuf {
   PathBuf::from(std::env::home_dir().unwrap().to_string_lossy().to_string())
     .join("Pictures")
     .join("Steam Screenshots")
+}
+
+#[cfg(target_os = "windows")]
+fn has_console_window() -> bool {
+  use windows::Win32::{System::Console::GetConsoleWindow, UI::WindowsAndMessaging::GetWindowThreadProcessId};
+
+  let console = unsafe { GetConsoleWindow() };
+
+  if console.is_invalid() {
+    return false;
+  }
+
+  let mut console_pid = 0;
+  unsafe { GetWindowThreadProcessId(console, Some(&mut console_pid)) };
+
+  console_pid != std::process::id()
+}
+
+#[cfg(target_os = "linux")]
+fn has_console_window() -> bool {
+  todo!("has_console_window");
+}
+
+#[cfg(target_os = "windows")]
+fn hide_console_window() {
+  use windows::Win32::System::Console::FreeConsole;
+
+  unsafe { FreeConsole().unwrap() };
+}
+
+#[cfg(target_os = "linux")]
+fn hide_console_window() {
+  todo!("hide_console_window");
 }
