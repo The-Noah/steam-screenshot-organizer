@@ -64,8 +64,15 @@ fn main() {
           }
         );
         if let Ok(latest_version) = latest_version {
-          println!("Update available: {}", if update_handler::get_current_version() != latest_version { "Yes" } else { "No" });
-          if update_handler::get_current_version() != latest_version {
+          println!(
+            "Update available: {}",
+            if update_handler::is_up_to_date(&update_handler::get_current_version(), &latest_version) {
+              "No"
+            } else {
+              "Yes"
+            }
+          );
+          if !update_handler::is_up_to_date(&update_handler::get_current_version(), &latest_version) {
             println!("Current version: v{}", env!("CARGO_PKG_VERSION"));
             println!("Latest version: {}", latest_version);
           }

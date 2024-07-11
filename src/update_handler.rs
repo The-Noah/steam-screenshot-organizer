@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use reqwest::{header::USER_AGENT, Method};
 use serde::Deserialize;
 
@@ -23,6 +25,24 @@ pub fn get_latest_version() -> Result<String, reqwest::Error> {
   Ok(releases[0].tag_name.clone())
 }
 
+pub fn is_up_to_date(current: &str, new: &str) -> bool {
+  let current = current.trim_start_matches('v');
+  let new = new.trim_start_matches('v');
+
+  let current: Vec<u32> = current.split('.').map(|s| s.parse().unwrap()).collect();
+  let new: Vec<u32> = new.split('.').map(|s| s.parse().unwrap()).collect();
+
+  for (current, new) in current.iter().zip(new.iter()) {
+    match current.cmp(new) {
+      Ordering::Less => return false,
+      Ordering::Greater => return true,
+      Ordering::Equal => (),
+    }
+  }
+
+  true
+}
+
 #[cfg(not(debug_assertions))]
 pub fn update() -> bool {
   use std::{
@@ -42,7 +62,7 @@ pub fn update() -> bool {
   let current_version = get_current_version();
   let latest_version = get_latest_version().unwrap();
 
-  if current_version == latest_version {
+  if update_handler::is_up_to_date(current_version, latest_version) {
     println!("Already up to date");
     return false;
   }
@@ -105,4 +125,23 @@ fn get_releases() -> Result<Vec<Release>, reqwest::Error> {
     .header(USER_AGENT, "steam-screenshot-manager")
     .send()?
     .json::<Vec<Release>>()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_is_up_to_date() {
+    assert!(is_up_to_date("v1.0.0", "v1.0.0"));
+
+    assert!(is_up_to_date("v1.0.1", "v1.0.0"));
+    assert!(is_up_to_date("v1.1.0", "v1.0.0"));
+
+    assert!(!is_up_to_date("v1.0.0", "v1.0.1"));
+    assert!(!is_up_to_date("v1.0.0", "v1.1.0"));
+
+    assert!(!is_up_to_date("v1.0.0", "v2.0.0"));
+    assert!(is_up_to_date("v2.0.0", "v1.0.0"));
+  }
 }
