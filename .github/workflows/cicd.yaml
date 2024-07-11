@@ -38,7 +38,7 @@ jobs:
         run: cargo test --verbose
 
       - name: Check formatting
-        run: cargo fmt -- --check
+        run: cargo fmt -- --check --config newline_style=Auto
 
       - name: Check clippy
         run: cargo clippy -- -D warnings
