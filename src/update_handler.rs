@@ -47,8 +47,29 @@ pub fn update() -> bool {
     return false;
   }
 
+  #[cfg(target_os = "windows")]
+  unsafe {
+    use windows::core::PCWSTR;
+    use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, IDYES, MB_ICONQUESTION, MB_YESNO};
+
+    let title: Vec<u16> = "Steam Screenshot Organizer\0".encode_utf16().collect();
+    let text: Vec<u16> = format!(
+      "An update is available!\n\nCurrent version: {}\nNew version: {}\n\nWould you like to update?\0",
+      current_version, latest_version
+    )
+    .encode_utf16()
+    .collect();
+
+    let answer = MessageBoxW(None, PCWSTR(text.as_ptr()), PCWSTR(title.as_ptr()), MB_YESNO | MB_ICONQUESTION);
+
+    match answer {
+      IDYES => (),
+      _ => return false,
+    }
+  }
+
   let executable_url = get_latest_version_executable_url().unwrap();
-  let executable = reqwest::blocking::get(&executable_url).unwrap().bytes().unwrap();
+  let executable = reqwest::blocking::get(executable_url).unwrap().bytes().unwrap();
 
   let old_exe_path = std::env::current_dir()
     .unwrap()
