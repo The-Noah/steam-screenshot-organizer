@@ -6,7 +6,7 @@ authors = ["Noah Dunbar <noah@noahdunbar.com>"]
 
 [dependencies]
 notify = "6.1.1"
-reqwest = { version = "0.12.5", features = ["blocking"] }
+reqwest = { version = "0.12.5", features = ["blocking", "json"] }
 serde = { version = "1.0.203", features = ["derive"] }
 serde-xml-rs = "0.6.0"
 

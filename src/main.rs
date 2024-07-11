@@ -1,8 +1,9 @@
-use std::{fs, sync::mpsc};
+use std::{fs, sync::mpsc, thread, time::Duration};
 
 use notify::{Config, RecommendedWatcher, Watcher};
 
 mod steam;
+mod update_handler;
 
 fn main() {
   let args: Vec<String> = std::env::args().collect();
@@ -13,21 +14,33 @@ fn main() {
       run();
     } else {
       hide_console_window();
-      watch();
+
+      if update_handler::update() {
+        let args = args.to_vec();
+        thread::spawn(move || {
+          std::process::Command::new(std::env::current_exe().unwrap()).args(args).status().unwrap();
+        });
+
+        // Ensure the new process has time to start
+        thread::sleep(Duration::from_secs(2));
+      } else {
+        watch();
+      }
     }
   } else {
     match args[0].as_str() {
       "help" | "--help" | "-h" => {
-        println!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        println!("{} {}", env!("CARGO_PKG_NAME"), update_handler::get_current_version());
         println!();
         println!("Usage:");
         println!("  {} [command]", env!("CARGO_PKG_NAME"));
         println!();
         println!("Commands:");
-        println!("  help     Display this help message.");
-        println!("  debug    Display debug information.");
-        println!("  run      Run the program.");
-        println!("  watch    Run the program in watch mode.");
+        println!("  help      Display this help message.");
+        println!("  debug     Display debug information.");
+        println!("  run       Run the program.");
+        println!("  watch     Run the program in watch mode.");
+        println!("  update    Download any available updates.");
         println!();
         println!("Defaults:");
         println!("  When executed inside a console, the run command is executed.");
@@ -36,8 +49,9 @@ fn main() {
       "debug" => {
         let steam_id = steam::get_id();
         let steam_id3 = steam_id.map(steam::id_to_id3);
+        let latest_version = update_handler::get_latest_version();
 
-        println!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        println!("{} {}", env!("CARGO_PKG_NAME"), update_handler::get_current_version());
         println!();
         println!("Steam ID: {}", if let Some(steam_id) = steam_id { steam_id.to_string() } else { "Not found".to_string() });
         println!("Steam screenshots directory: {}", steam::get_screenshots_directory().display());
@@ -49,9 +63,21 @@ fn main() {
             0
           }
         );
+        if let Ok(latest_version) = latest_version {
+          println!("Update available: {}", if update_handler::get_current_version() != latest_version { "Yes" } else { "No" });
+          if update_handler::get_current_version() != latest_version {
+            println!("Current version: v{}", env!("CARGO_PKG_VERSION"));
+            println!("Latest version: {}", latest_version);
+          }
+        } else {
+          print!("Failed to check for updates");
+        }
       }
       "run" => run(),
       "watch" => watch(),
+      "update" => {
+        update_handler::update();
+      }
       _ => println!("Invalid command."),
     }
   }
@@ -157,7 +183,16 @@ fn has_console_window() -> bool {
 
 #[cfg(target_os = "windows")]
 fn hide_console_window() {
-  use windows::Win32::System::Console::FreeConsole;
+  use windows::Win32::{
+    Foundation::HANDLE,
+    System::Console::{FreeConsole, SetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE},
+  };
+
+  unsafe {
+    SetStdHandle(STD_INPUT_HANDLE, HANDLE(std::ptr::null_mut())).unwrap();
+    SetStdHandle(STD_OUTPUT_HANDLE, HANDLE(std::ptr::null_mut())).unwrap();
+    SetStdHandle(STD_ERROR_HANDLE, HANDLE(std::ptr::null_mut())).unwrap();
+  }
 
   unsafe { FreeConsole().unwrap() };
 }
