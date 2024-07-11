@@ -33,7 +33,8 @@ pub fn update() -> bool {
   fn get_latest_version_executable_url() -> Result<String, reqwest::Error> {
     let releases = get_releases()?;
 
-    let asset = releases[0].assets.iter().find(|asset| asset.name == "steam-screenshot-organizer.exe").unwrap();
+    let asset_name = format!("{}{}", env!("CARGO_PKG_NAME"), if cfg!(windows) { ".exe" } else { "" });
+    let asset = releases[0].assets.iter().find(|asset| asset.name == asset_name).unwrap();
 
     Ok(asset.browser_download_url.clone())
   }
