@@ -62,7 +62,7 @@ pub fn update() -> bool {
   let current_version = get_current_version();
   let latest_version = get_latest_version().unwrap();
 
-  if update_handler::is_up_to_date(current_version, latest_version) {
+  if is_up_to_date(current_version, latest_version) {
     println!("Already up to date");
     return false;
   }
