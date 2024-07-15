@@ -271,7 +271,6 @@ fn add_to_startup() {
       PCWSTR::from_raw(to_utf16(value).as_ptr()),
       0,
       REG_SZ,
-      // Some(path.to_string_lossy().bytes().chain(std::iter::once(0)).collect::<Vec<u8>>().as_slice()),
       Some(&v16_to_v8(&to_utf16(&path.to_string_lossy()))),
     )
   };
@@ -286,9 +285,6 @@ fn add_to_startup() {
   if result.is_err() {
     eprintln!("Failed to close registry key");
   }
-
-  // RegCreateKey(HKEY_CURRENT_USER, PWSTR::from(subkey), &mut key).unwrap();
-  // RegSetValueEx(key, PWSTR::NULL, 0, 1, path.to_string_lossy().as_ptr() as _, (path.to_string_lossy().len() * 2) as _).unwrap();
 }
 
 #[cfg(target_os = "linux")]
