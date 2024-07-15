@@ -15,6 +15,8 @@ fn main() {
     } else {
       hide_console_window();
 
+      add_to_startup();
+
       if update_handler::update() {
         let args = args.to_vec();
         thread::spawn(move || {
@@ -207,4 +209,89 @@ fn hide_console_window() {
 #[cfg(target_os = "linux")]
 fn hide_console_window() {
   todo!("hide_console_window");
+}
+
+#[cfg(target_os = "windows")]
+fn add_to_startup() {
+  use windows::{
+    core::PCWSTR,
+    Win32::System::Registry::{RegCloseKey, RegCreateKeyExW, RegSetValueExW, HKEY_CURRENT_USER, KEY_WRITE, REG_OPTION_NON_VOLATILE, REG_SZ},
+  };
+
+  unsafe {
+    use windows::core::PCWSTR;
+    use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, IDYES, MB_ICONQUESTION, MB_YESNO};
+
+    let title: Vec<u16> = "Steam Screenshot Organizer\0".encode_utf16().collect();
+    let text: Vec<u16> = "Would you like to add Steam Screenshot Organizer to startup?\0".encode_utf16().collect();
+
+    let answer = MessageBoxW(None, PCWSTR(text.as_ptr()), PCWSTR(title.as_ptr()), MB_YESNO | MB_ICONQUESTION);
+
+    match answer {
+      IDYES => (),
+      _ => return,
+    }
+  }
+
+  fn to_utf16(s: &str) -> Vec<u16> {
+    s.encode_utf16().chain(std::iter::once(0)).collect()
+  }
+
+  fn v16_to_v8(v: &[u16]) -> Vec<u8> {
+    unsafe { std::slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 2).to_vec() }
+  }
+
+  let mut key = HKEY_CURRENT_USER;
+  let subkey = r#"Software\Microsoft\Windows\CurrentVersion\Run"#;
+  let value = "Steam Screenshot Organizer";
+  let path = std::env::current_exe().unwrap();
+
+  let result = unsafe {
+    RegCreateKeyExW(
+      HKEY_CURRENT_USER,
+      PCWSTR::from_raw(to_utf16(subkey).as_ptr()),
+      0,
+      None,
+      REG_OPTION_NON_VOLATILE,
+      KEY_WRITE,
+      None,
+      &mut key,
+      None,
+    )
+  };
+
+  if result.is_err() {
+    eprintln!("Failed to create registry key");
+    return;
+  }
+
+  let result = unsafe {
+    RegSetValueExW(
+      key,
+      PCWSTR::from_raw(to_utf16(value).as_ptr()),
+      0,
+      REG_SZ,
+      // Some(path.to_string_lossy().bytes().chain(std::iter::once(0)).collect::<Vec<u8>>().as_slice()),
+      Some(&v16_to_v8(&to_utf16(&path.to_string_lossy()))),
+    )
+  };
+
+  if result.is_err() {
+    eprintln!("Failed to set registry key");
+    return;
+  }
+
+  let result = unsafe { RegCloseKey(key) };
+
+  if result.is_err() {
+    eprintln!("Failed to close registry key");
+  }
+
+  // RegCreateKey(HKEY_CURRENT_USER, PWSTR::from(subkey), &mut key).unwrap();
+  // RegSetValueEx(key, PWSTR::NULL, 0, 1, path.to_string_lossy().as_ptr() as _, (path.to_string_lossy().len() * 2) as _).unwrap();
+}
+
+#[cfg(target_os = "linux")]
+fn add_to_startup() {
+  todo!("add_to_startup");
 }
