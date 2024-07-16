@@ -38,7 +38,7 @@ fn main() {
         println!();
         println!("Commands:");
         println!("  help      Display this help message.");
-        println!("  debug     Display debug information.");
+        println!("  info      Display helpful information.");
         println!("  run       Run the program.");
         println!("  watch     Run the program in watch mode.");
         println!("  update    Download any available updates.");
@@ -47,7 +47,7 @@ fn main() {
         println!("  When executed inside a console, the run command is executed.");
         println!("  When executed outside a console, the watch command is executed.");
       }
-      "debug" => {
+      "info" => {
         let steam_id = steam::get_id();
         let steam_id3 = steam_id.map(steam::id_to_id3);
         let latest_version = update_handler::get_latest_version();
