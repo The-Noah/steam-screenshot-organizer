@@ -31,7 +31,7 @@ jobs:
           default: true
           override: true
 
-      - name: Add RC.exe to PATH
+      - name: Add RC.exe to PATH and build
         run: |
           function Invoke-VSDevEnvironment {
               $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -45,9 +45,7 @@ jobs:
           }
           Invoke-VSDevEnvironment
           Get-Command rc.exe | Format-Table -AutoSize
-
-      - name: Build
-        run: cargo build --verbose
+          cargo build --verbose
 
       - name: Run tests
         run: cargo test --verbose
@@ -91,7 +89,7 @@ jobs:
           default: true
           override: true
 
-      - name: Add RC.exe to PATH
+      - name: Add RC.exe to PATH and build
         run: |
           function Invoke-VSDevEnvironment {
               $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -105,9 +103,7 @@ jobs:
           }
           Invoke-VSDevEnvironment
           Get-Command rc.exe | Format-Table -AutoSize
-
-      - name: Build
-        run: cargo build --verbose --release
+          cargo build --verbose --release
 
       - name: Get Windows binary extension
         id: get_extension
