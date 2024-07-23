@@ -1,6 +1,7 @@
 use std::{fs, sync::mpsc, thread, time::Duration};
 
 use notify::{Config, RecommendedWatcher, Watcher};
+use windows::Win32::UI::WindowsAndMessaging::MB_OK;
 
 mod steam;
 mod update_handler;
@@ -17,6 +18,17 @@ fn main() {
       add_to_startup();
 
       if update_handler::update() {
+        #[cfg(target_os = "windows")]
+        unsafe {
+          use windows::core::PCWSTR;
+          use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONQUESTION};
+
+          let title: Vec<u16> = "Steam Screenshot Organizer\0".encode_utf16().collect();
+          let text: Vec<u16> = "Update successful!\nSteam Screenshot Organizer will now run in the background.\0".encode_utf16().collect();
+
+          MessageBoxW(None, PCWSTR(text.as_ptr()), PCWSTR(title.as_ptr()), MB_OK | MB_ICONQUESTION);
+        }
+
         let args = args.to_vec();
         thread::spawn(move || {
           std::process::Command::new(std::env::current_exe().unwrap()).args(args).status().unwrap();
