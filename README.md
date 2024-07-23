@@ -9,7 +9,7 @@ Your screenshot folder is automatically detected from Steam, which you can chang
 1. Download the [latest release](https://github.com/The-Noah/steam-screenshot-organizer/releases/latest/download/steam-screenshot-organizer.exe)
 2. Place the executable in any directory
 3. Run the executable. It will run in the background and organize your screenshots automatically as you take them.
-4. You will have to run the executable after every reboot.
+4. After running the executable you will be given the option to enable automatically running at startup. If you do not enable this, you must rerun the executable whenever you reboot.
 
 Currently only supports Windows. Linux and MacOS will eventually be supported.
 
