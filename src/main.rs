@@ -1,7 +1,6 @@
 use std::{fs, sync::mpsc, thread, time::Duration};
 
 use notify::{Config, RecommendedWatcher, Watcher};
-use windows::Win32::UI::WindowsAndMessaging::MB_OK;
 
 mod steam;
 mod update_handler;
@@ -19,15 +18,12 @@ fn main() {
 
       if update_handler::update() {
         #[cfg(target_os = "windows")]
-        unsafe {
-          use windows::core::PCWSTR;
-          use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONQUESTION};
-
-          let title: Vec<u16> = "Steam Screenshot Organizer\0".encode_utf16().collect();
-          let text: Vec<u16> = "Update successful!\nSteam Screenshot Organizer will now run in the background.\0".encode_utf16().collect();
-
-          MessageBoxW(None, PCWSTR(text.as_ptr()), PCWSTR(title.as_ptr()), MB_OK | MB_ICONQUESTION);
-        }
+        win32utils::dialog(
+          "Steam Screenshot Organizer",
+          "Update successful!\nSteam Screenshot Organizer will now run in the background.",
+          win32utils::DialogIcon::Info,
+          win32utils::DialogButtons::Ok,
+        );
 
         let args = args.to_vec();
         thread::spawn(move || {
@@ -264,19 +260,14 @@ fn add_to_startup() {
     return;
   }
 
-  unsafe {
-    use windows::core::PCWSTR;
-    use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, IDYES, MB_ICONQUESTION, MB_YESNO};
-
-    let title: Vec<u16> = "Steam Screenshot Organizer\0".encode_utf16().collect();
-    let text: Vec<u16> = "Would you like to add Steam Screenshot Organizer to startup?\0".encode_utf16().collect();
-
-    let answer = MessageBoxW(None, PCWSTR(text.as_ptr()), PCWSTR(title.as_ptr()), MB_YESNO | MB_ICONQUESTION);
-
-    match answer {
-      IDYES => (),
-      _ => return,
-    }
+  match win32utils::dialog(
+    "Steam Screenshot Organizer",
+    "Would you like to add Steam Screenshot Organizer to startup?",
+    win32utils::DialogIcon::Question,
+    win32utils::DialogButtons::YesNo,
+  ) {
+    win32utils::DialogResult::Yes => (),
+    _ => return,
   }
 
   let mut key = HKEY_CURRENT_USER;

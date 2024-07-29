@@ -961,6 +961,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde-xml-rs",
+ "win32utils",
  "windows",
 ]
 
@@ -1299,6 +1300,15 @@ checksum = "77afa9a11836342370f4817622a2f0f418b134426d91a82dfb48f532d2ec13ef"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "win32utils"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "debe0c40d893b2528b50afa7ef2583c54988fc382b7fa46e1769bf95ed3bbc92"
+dependencies = [
+ "windows",
 ]
 
 [[package]]

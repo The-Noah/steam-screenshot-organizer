@@ -16,9 +16,14 @@ pub fn add_resource(name: String) {
 }
 
 #[cfg(target_os = "windows")]
+#[cfg(not(debug_assertions))]
 fn main() {
   add_resource(String::from("resources"));
 }
+
+#[cfg(target_os = "windows")]
+#[cfg(debug_assertions)]
+fn main() {}
 
 #[cfg(not(target_os = "windows"))]
 fn main() {}
