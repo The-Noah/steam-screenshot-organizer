@@ -220,44 +220,18 @@ fn hide_console_window() {
 
 #[cfg(target_os = "windows")]
 fn add_to_startup() {
-  use windows::{
-    core::PCWSTR,
-    Win32::{
-      Foundation::ERROR_FILE_NOT_FOUND,
-      System::Registry::{RegCloseKey, RegCreateKeyExW, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW, HKEY_CURRENT_USER, KEY_READ, KEY_WRITE, REG_OPTION_NON_VOLATILE, REG_SZ},
-    },
-  };
-
-  fn to_utf16(s: &str) -> Vec<u16> {
-    s.encode_utf16().chain(std::iter::once(0)).collect()
-  }
-
-  fn v16_to_v8(v: &[u16]) -> Vec<u8> {
-    unsafe { std::slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 2).to_vec() }
-  }
-
   let subkey = r#"Software\Microsoft\Windows\CurrentVersion\Run"#;
-  let value = "Steam Screenshot Organizer";
+  let name = "Steam Screenshot Organizer";
 
   // check if the program is already in startup
 
-  let mut key = HKEY_CURRENT_USER;
-
-  let result = unsafe { RegOpenKeyExW(HKEY_CURRENT_USER, PCWSTR::from_raw(to_utf16(subkey).as_ptr()), 0, KEY_READ, &mut key) };
-
-  if result.is_err() {
-    eprintln!("Failed to open registry key");
-    return;
-  }
-
-  let result = unsafe { RegQueryValueExW(key, PCWSTR::from_raw(to_utf16(value).as_ptr()), None, None, None, None) };
-
-  if result != ERROR_FILE_NOT_FOUND {
-    unsafe {
-      let _ = RegCloseKey(key);
+  match win32utils::registry::exists(win32utils::registry::HKEY::CurrentUser, subkey, name) {
+    Ok(true) => return,
+    Ok(false) => {}
+    Err(error) => {
+      eprintln!("Failed to check registry key: {}", error.to_string());
+      return;
     }
-
-    return;
   }
 
   match win32utils::dialog(
@@ -270,47 +244,10 @@ fn add_to_startup() {
     _ => return,
   }
 
-  let mut key = HKEY_CURRENT_USER;
   let path = std::env::current_exe().unwrap();
 
-  let result = unsafe {
-    RegCreateKeyExW(
-      HKEY_CURRENT_USER,
-      PCWSTR::from_raw(to_utf16(subkey).as_ptr()),
-      0,
-      None,
-      REG_OPTION_NON_VOLATILE,
-      KEY_WRITE,
-      None,
-      &mut key,
-      None,
-    )
-  };
-
-  if result.is_err() {
-    eprintln!("Failed to create registry key");
-    return;
-  }
-
-  let result = unsafe {
-    RegSetValueExW(
-      key,
-      PCWSTR::from_raw(to_utf16(value).as_ptr()),
-      0,
-      REG_SZ,
-      Some(&v16_to_v8(&to_utf16(&path.to_string_lossy()))),
-    )
-  };
-
-  if result.is_err() {
-    eprintln!("Failed to set registry key");
-    return;
-  }
-
-  let result = unsafe { RegCloseKey(key) };
-
-  if result.is_err() {
-    eprintln!("Failed to close registry key");
+  if win32utils::registry::write_string(win32utils::registry::HKEY::CurrentUser, &subkey, &name, path.to_string_lossy()).is_err() {
+    eprintln!("Failed to write registry key");
   }
 }
 
