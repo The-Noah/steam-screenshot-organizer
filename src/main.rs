@@ -33,6 +33,10 @@ fn main() {
         // Ensure the new process has time to start
         thread::sleep(Duration::from_secs(2));
       } else {
+        thread::spawn(|| {
+          win32utils::shell::tray_icon("Steam Screenshot Manager");
+        });
+
         watch();
       }
     }

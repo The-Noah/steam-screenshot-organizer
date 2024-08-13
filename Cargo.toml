@@ -11,7 +11,8 @@ serde = { version = "1.0.203", features = ["derive"] }
 serde-xml-rs = "0.6.0"
 
 [target.'cfg(windows)'.dependencies]
-win32utils = "0.2.0"
+# win32utils = "0.2.0"
+win32utils = "0.3.0"
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.58.0"
