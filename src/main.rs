@@ -16,6 +16,21 @@ fn main() {
       hide_console_window();
       add_to_startup();
 
+      let current_exe = std::env::current_exe().unwrap();
+
+      // Kill any existing instances of the program
+
+      let exe_name = current_exe.file_name().unwrap().to_string_lossy();
+      let system = sysinfo::System::new_all();
+
+      for (pid, process) in system.processes() {
+        if process.name().to_string_lossy() != exe_name || pid.as_u32() == std::process::id() {
+          continue;
+        }
+
+        process.kill();
+      }
+
       if update_handler::update() {
         #[cfg(target_os = "windows")]
         win32utils::dialog(
@@ -27,11 +42,11 @@ fn main() {
 
         let args = args.to_vec();
         thread::spawn(move || {
-          std::process::Command::new(std::env::current_exe().unwrap()).args(args).status().unwrap();
+          std::process::Command::new(current_exe).args(args).status().unwrap();
         });
 
         // Ensure the new process has time to start
-        thread::sleep(Duration::from_secs(2));
+        thread::sleep(Duration::from_secs(5));
       } else {
         thread::spawn(|| {
           win32utils::shell::tray_icon("Steam Screenshot Manager");
