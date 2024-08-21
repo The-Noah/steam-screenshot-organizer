@@ -18,7 +18,7 @@ fn main() {
 
       let current_exe = std::env::current_exe().unwrap();
 
-      // Kill any existing instances of the program
+      // kill any existing instances of the program
 
       let exe_name = current_exe.file_name().unwrap().to_string_lossy();
       let system = sysinfo::System::new_all();
@@ -45,7 +45,7 @@ fn main() {
           std::process::Command::new(current_exe).args(args).status().unwrap();
         });
 
-        // Ensure the new process has time to start
+        // ensure the new process has time to start
         thread::sleep(Duration::from_secs(5));
       } else {
         thread::spawn(|| {
