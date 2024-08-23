@@ -1,4 +1,4 @@
-# Steam Screenshot Organizer
+# <img height="24" src="logo.png" /> Steam Screenshot Organizer
 
 This is a simple script that organizes your Steam screenshots into folders based on the game they were taken in.
 
