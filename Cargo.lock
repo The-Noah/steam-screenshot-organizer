@@ -1373,9 +1373,9 @@ dependencies = [
 
 [[package]]
 name = "win32utils"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4531a565ad6375783b6a9f5fdddfa3c92125aefd8de98e48b982b1671c0b341f"
+checksum = "29e4e0a8dbddd5ce90484e9561652b5df02d4e54452251942e47468befcd1565"
 dependencies = [
  "windows 0.58.0",
 ]

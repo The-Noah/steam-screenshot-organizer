@@ -245,7 +245,16 @@ fn add_to_startup() {
   // check if the program is already in startup
 
   match win32utils::registry::exists(win32utils::registry::HKEY::CurrentUser, subkey, name) {
-    Ok(true) => return,
+    Ok(true) => {
+      let path = std::env::current_exe().unwrap();
+      let existing_path = win32utils::registry::read_string(win32utils::registry::HKEY::CurrentUser, subkey, name).unwrap_or_default();
+
+      println!("Existing path: {}", existing_path);
+
+      if existing_path == path.to_string_lossy() {
+        return;
+      }
+    }
     Ok(false) => {}
     Err(error) => {
       eprintln!("Failed to check registry key: {}", error.to_string());
