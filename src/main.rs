@@ -249,27 +249,25 @@ fn add_to_startup() {
       let path = std::env::current_exe().unwrap();
       let existing_path = win32utils::registry::read_string(win32utils::registry::HKEY::CurrentUser, subkey, name).unwrap_or_default();
 
-      println!("Existing path: {}", existing_path);
-
       if existing_path == path.to_string_lossy() {
         return;
       }
     }
-    Ok(false) => {}
+    Ok(false) => {
+      match win32utils::dialog(
+        "Steam Screenshot Organizer",
+        "Would you like to add Steam Screenshot Organizer to startup?",
+        win32utils::DialogIcon::Question,
+        win32utils::DialogButtons::YesNo,
+      ) {
+        win32utils::DialogResult::Yes => (),
+        _ => return,
+      }
+    }
     Err(error) => {
       eprintln!("Failed to check registry key: {}", error.to_string());
       return;
     }
-  }
-
-  match win32utils::dialog(
-    "Steam Screenshot Organizer",
-    "Would you like to add Steam Screenshot Organizer to startup?",
-    win32utils::DialogIcon::Question,
-    win32utils::DialogButtons::YesNo,
-  ) {
-    win32utils::DialogResult::Yes => (),
-    _ => return,
   }
 
   let path = std::env::current_exe().unwrap();
