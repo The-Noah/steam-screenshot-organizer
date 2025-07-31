@@ -107,7 +107,7 @@ fn main() {
           );
           if !update_handler::is_up_to_date(&update_handler::get_current_version(), &latest_version) {
             println!("Current version: v{}", env!("CARGO_PKG_VERSION"));
-            println!("Latest version: {}", latest_version);
+            println!("Latest version: {latest_version}");
           }
         } else {
           print!("Failed to check for updates");
@@ -195,7 +195,7 @@ fn watch() {
       Ok(_) => {
         run();
       }
-      Err(error) => eprintln!("Watch error: {:?}", error),
+      Err(error) => eprintln!("Watch error: {error:?}"),
     }
   }
 }
@@ -251,7 +251,7 @@ fn add_to_startup() {
   let current_path = match std::env::current_exe() {
     Ok(path) => path,
     Err(e) => {
-      eprintln!("Failed to get current executable path: {}", e);
+      eprintln!("Failed to get current executable path: {e}");
       return;
     }
   };
@@ -273,7 +273,7 @@ fn add_to_startup() {
       }
 
       // Path differs, update it
-      println!("Updating startup path from '{}' to '{}'", existing_path, path_str);
+      println!("Updating startup path from '{existing_path}' to '{path_str}'");
     }
     Ok(false) => {
       // Not in startup, ask user permission

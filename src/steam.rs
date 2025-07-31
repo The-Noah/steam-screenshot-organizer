@@ -49,11 +49,11 @@ pub fn get_id() -> Option<u64> {
 }
 
 pub fn id_to_id3(steam_id: u64) -> String {
-  format!("[U:1:{}]", steam_id)
+  format!("[U:1:{steam_id}]")
 }
 
 pub fn get_online_library(steam_id3: &String) -> Vec<Game> {
-  let games = reqwest::blocking::get(format!("https://steamcommunity.com/profiles/{}/games?xml=1", steam_id3))
+  let games = reqwest::blocking::get(format!("https://steamcommunity.com/profiles/{steam_id3}/games?xml=1"))
     .unwrap()
     .text()
     .unwrap();
@@ -86,7 +86,7 @@ pub fn get_app_info(app_id: u64) -> Option<String> {
   let directories = get_app_directories();
 
   for directory in directories {
-    let app_info = directory.join(format!("appmanifest_{}.acf", app_id));
+    let app_info = directory.join(format!("appmanifest_{app_id}.acf"));
 
     if !app_info.exists() {
       continue;
@@ -95,7 +95,7 @@ pub fn get_app_info(app_id: u64) -> Option<String> {
     let app_info = fs::read_to_string(app_info);
 
     if let Err(error) = app_info {
-      eprintln!("Error reading app info: {}", error);
+      eprintln!("Error reading app info: {error}");
       break;
     }
 

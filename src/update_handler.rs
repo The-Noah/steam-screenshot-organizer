@@ -3,7 +3,7 @@ use std::io::Read;
 
 use reqwest::{header::USER_AGENT, Method};
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
+use sha2::Digest;
 use tempfile::NamedTempFile;
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -80,17 +80,16 @@ fn validate_executable_content(content: &[u8]) -> Result<(), UpdateError> {
 fn secure_download(url: &str) -> Result<Vec<u8>, UpdateError> {
   let client = reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(300)).build()?;
 
-  let mut response = client.get(url).header(USER_AGENT, "steam-screenshot-manager").send()?;
+  let response = client.get(url).header(USER_AGENT, "steam-screenshot-manager").send()?;
 
   if !response.status().is_success() {
-    return Err(UpdateError::NetworkError(reqwest::Error::from(response.error_for_status().unwrap_err())));
+    return Err(UpdateError::NetworkError(response.error_for_status().unwrap_err()));
   }
 
   let content_length = response.content_length().unwrap_or(0);
   if content_length > MAX_EXECUTABLE_SIZE {
     return Err(UpdateError::SecurityError(format!(
-      "Download size {} exceeds maximum allowed size {}",
-      content_length, MAX_EXECUTABLE_SIZE
+      "Download size {content_length} exceeds maximum allowed size {MAX_EXECUTABLE_SIZE}"
     )));
   }
 
@@ -123,7 +122,7 @@ pub fn is_up_to_date(current: &str, new: &str) -> bool {
 fn atomic_replace_executable(new_content: &[u8]) -> Result<(), UpdateError> {
   use std::{fs, io::Write};
 
-  let current_exe = std::env::current_exe().map_err(|e| UpdateError::IoError(e))?;
+  let current_exe = std::env::current_exe().map_err(UpdateError::IoError)?;
 
   let exe_dir = current_exe
     .parent()
@@ -174,7 +173,7 @@ fn get_latest_version_executable_url() -> Result<String, UpdateError> {
     .assets
     .iter()
     .find(|asset| asset.name == asset_name)
-    .ok_or_else(|| UpdateError::ValidationError(format!("Asset {} not found in release", asset_name)))?;
+    .ok_or_else(|| UpdateError::ValidationError(format!("Asset {asset_name} not found in release")))?;
 
   Ok(asset.browser_download_url.clone())
 }
