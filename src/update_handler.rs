@@ -1,7 +1,10 @@
 use std::cmp::Ordering;
+use std::io::Read;
 
 use reqwest::{header::USER_AGENT, Method};
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
+use tempfile::NamedTempFile;
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct Release {
@@ -15,6 +18,28 @@ struct Asset {
   browser_download_url: String,
 }
 
+#[derive(Debug)]
+enum UpdateError {
+  NetworkError(reqwest::Error),
+  IoError(std::io::Error),
+  ValidationError(String),
+  SecurityError(String),
+}
+
+impl From<reqwest::Error> for UpdateError {
+  fn from(err: reqwest::Error) -> Self {
+    UpdateError::NetworkError(err)
+  }
+}
+
+impl From<std::io::Error> for UpdateError {
+  fn from(err: std::io::Error) -> Self {
+    UpdateError::IoError(err)
+  }
+}
+
+const MAX_EXECUTABLE_SIZE: u64 = 10 * 1024 * 1024; // 10MB limit
+
 pub fn get_current_version() -> String {
   format!("v{}", env!("CARGO_PKG_VERSION"))
 }
@@ -23,6 +48,58 @@ pub fn get_latest_version() -> Result<String, reqwest::Error> {
   let releases = get_releases()?;
 
   Ok(releases[0].tag_name.clone())
+}
+
+fn validate_executable_content(content: &[u8]) -> Result<(), UpdateError> {
+  if content.len() > MAX_EXECUTABLE_SIZE as usize {
+    return Err(UpdateError::SecurityError(format!(
+      "Executable size {} exceeds maximum allowed size {}",
+      content.len(),
+      MAX_EXECUTABLE_SIZE
+    )));
+  }
+
+  // Basic PE/ELF header validation
+  #[cfg(windows)]
+  {
+    if content.len() < 64 || &content[0..2] != b"MZ" {
+      return Err(UpdateError::SecurityError("Invalid Windows executable format".to_string()));
+    }
+  }
+
+  #[cfg(unix)]
+  {
+    if content.len() < 4 || &content[0..4] != b"\x7fELF" {
+      return Err(UpdateError::SecurityError("Invalid ELF executable format".to_string()));
+    }
+  }
+
+  Ok(())
+}
+
+fn secure_download(url: &str) -> Result<Vec<u8>, UpdateError> {
+  let client = reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(300)).build()?;
+
+  let mut response = client.get(url).header(USER_AGENT, "steam-screenshot-manager").send()?;
+
+  if !response.status().is_success() {
+    return Err(UpdateError::NetworkError(reqwest::Error::from(response.error_for_status().unwrap_err())));
+  }
+
+  let content_length = response.content_length().unwrap_or(0);
+  if content_length > MAX_EXECUTABLE_SIZE {
+    return Err(UpdateError::SecurityError(format!(
+      "Download size {} exceeds maximum allowed size {}",
+      content_length, MAX_EXECUTABLE_SIZE
+    )));
+  }
+
+  let mut content = Vec::new();
+  let mut limited_reader = response.take(MAX_EXECUTABLE_SIZE);
+  limited_reader.read_to_end(&mut content)?;
+
+  validate_executable_content(&content)?;
+  Ok(content)
 }
 
 pub fn is_up_to_date(current: &str, new: &str) -> bool {
@@ -43,24 +120,76 @@ pub fn is_up_to_date(current: &str, new: &str) -> bool {
   true
 }
 
-#[cfg(not(debug_assertions))]
-pub fn update() -> bool {
-  use std::{
-    fs::{self, File},
-    io::Write,
-  };
+fn atomic_replace_executable(new_content: &[u8]) -> Result<(), UpdateError> {
+  use std::{fs, io::Write};
 
-  fn get_latest_version_executable_url() -> Result<String, reqwest::Error> {
-    let releases = get_releases()?;
+  let current_exe = std::env::current_exe().map_err(|e| UpdateError::IoError(e))?;
 
-    let asset_name = format!("{}{}", env!("CARGO_PKG_NAME"), if cfg!(windows) { ".exe" } else { "" });
-    let asset = releases[0].assets.iter().find(|asset| asset.name == asset_name).unwrap();
+  let exe_dir = current_exe
+    .parent()
+    .ok_or_else(|| UpdateError::ValidationError("Cannot determine executable directory".to_string()))?;
 
-    Ok(asset.browser_download_url.clone())
+  // Create temporary file in same directory to ensure atomic move
+  let mut temp_file = NamedTempFile::new_in(exe_dir)?;
+  temp_file.write_all(new_content)?;
+
+  // Ensure all data is written to disk
+  temp_file.flush()?;
+
+  let temp_path = temp_file.path().to_owned();
+
+  // Create backup of current executable
+  let backup_path = current_exe.with_extension("bak");
+  if backup_path.exists() {
+    fs::remove_file(&backup_path)?;
   }
 
+  // Atomic operations: rename current to backup, then temp to current
+  fs::rename(&current_exe, &backup_path)?;
+
+  // Persist the temp file and move it to final location
+  match temp_file.persist(&current_exe) {
+    Ok(_) => {
+      // Success - remove backup
+      let _ = fs::remove_file(&backup_path);
+      Ok(())
+    }
+    Err(persist_error) => {
+      // Rollback: restore from backup
+      let _ = fs::rename(&backup_path, &current_exe);
+      Err(UpdateError::IoError(persist_error.error))
+    }
+  }
+}
+
+fn get_latest_version_executable_url() -> Result<String, UpdateError> {
+  let releases = get_releases()?;
+
+  if releases.is_empty() {
+    return Err(UpdateError::ValidationError("No releases found".to_string()));
+  }
+
+  let asset_name = format!("{}{}", env!("CARGO_PKG_NAME"), if cfg!(windows) { ".exe" } else { "" });
+  let asset = releases[0]
+    .assets
+    .iter()
+    .find(|asset| asset.name == asset_name)
+    .ok_or_else(|| UpdateError::ValidationError(format!("Asset {} not found in release", asset_name)))?;
+
+  Ok(asset.browser_download_url.clone())
+}
+
+#[cfg(not(debug_assertions))]
+pub fn update() -> bool {
   let current_version = get_current_version();
-  let latest_version = get_latest_version().unwrap();
+
+  let latest_version = match get_latest_version() {
+    Ok(version) => version,
+    Err(e) => {
+      eprintln!("Failed to check for updates: {}", e);
+      return false;
+    }
+  };
 
   if is_up_to_date(&current_version, &latest_version) {
     println!("Already up to date");
@@ -81,29 +210,32 @@ pub fn update() -> bool {
     _ => return false,
   }
 
-  let executable_url = get_latest_version_executable_url().unwrap();
-  let executable = reqwest::blocking::get(executable_url).unwrap().bytes().unwrap();
+  let executable_url = match get_latest_version_executable_url() {
+    Ok(url) => url,
+    Err(e) => {
+      eprintln!("Failed to get download URL: {:?}", e);
+      return false;
+    }
+  };
 
-  let old_exe_path = std::env::current_dir()
-    .unwrap()
-    .join(format!("{}.bak", std::env::current_exe().unwrap().file_stem().unwrap().to_str().unwrap()));
+  let executable_content = match secure_download(&executable_url) {
+    Ok(content) => content,
+    Err(e) => {
+      eprintln!("Failed to download update: {:?}", e);
+      return false;
+    }
+  };
 
-  if old_exe_path.exists() {
-    fs::remove_file(&old_exe_path).expect("Failed to delete old version");
+  match atomic_replace_executable(&executable_content) {
+    Ok(()) => {
+      println!("Updated to version {}", latest_version);
+      true
+    }
+    Err(e) => {
+      eprintln!("Failed to install update: {:?}", e);
+      false
+    }
   }
-
-  fs::rename(std::env::current_exe().unwrap(), &old_exe_path).expect("Failed to rename current version");
-
-  let mut file = File::create(std::env::current_exe().unwrap()).unwrap();
-  file.write_all(&executable).unwrap();
-
-  if old_exe_path.exists() {
-    fs::remove_file(&old_exe_path).expect("Failed to delete old version");
-  }
-
-  println!("Updated to version {}", latest_version);
-
-  true
 }
 
 #[cfg(debug_assertions)]

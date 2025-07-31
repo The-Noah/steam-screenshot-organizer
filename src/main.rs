@@ -18,17 +18,22 @@ fn main() {
 
       let current_exe = std::env::current_exe().unwrap();
 
-      // kill any existing instances of the program
-
-      let exe_name = current_exe.file_name().unwrap().to_string_lossy();
+      // kill any existing instances of the program with same path
+      let current_exe_path = current_exe.to_string_lossy().to_string();
       let system = sysinfo::System::new_all();
 
       for (pid, process) in system.processes() {
-        if process.name().to_string_lossy() != exe_name || pid.as_u32() == std::process::id() {
+        // Skip current process
+        if pid.as_u32() == std::process::id() {
           continue;
         }
 
-        process.kill();
+        // Only kill processes with exact same executable path
+        if let Some(process_exe) = process.exe() {
+          if process_exe.to_string_lossy() == current_exe_path {
+            let _ = process.kill(); // Use graceful termination
+          }
+        }
       }
 
       if update_handler::update() {
@@ -190,7 +195,7 @@ fn watch() {
       Ok(_) => {
         run();
       }
-      Err(e) => eprintln!("Watch error: {:?}", e),
+      Err(error) => eprintln!("Watch error: {:?}", error),
     }
   }
 }
@@ -242,18 +247,36 @@ fn add_to_startup() {
   let subkey = r#"Software\Microsoft\Windows\CurrentVersion\Run"#;
   let name = "Steam Screenshot Organizer";
 
-  // check if the program is already in startup
+  // Get current executable path with error handling
+  let current_path = match std::env::current_exe() {
+    Ok(path) => path,
+    Err(e) => {
+      eprintln!("Failed to get current executable path: {}", e);
+      return;
+    }
+  };
 
+  // Validate that the executable path is reasonable (basic security check)
+  let path_str = current_path.to_string_lossy().to_string();
+  if path_str.len() > 260 || path_str.contains("..") || !path_str.ends_with(".exe") {
+    eprintln!("Invalid executable path for startup registration");
+    return;
+  }
+
+  // Check if already in startup with correct path
   match win32utils::registry::exists(win32utils::registry::HKEY::CurrentUser, subkey, name) {
     Ok(true) => {
-      let path = std::env::current_exe().unwrap();
       let existing_path = win32utils::registry::read_string(win32utils::registry::HKEY::CurrentUser, subkey, name).unwrap_or_default();
 
-      if existing_path == path.to_string_lossy() {
-        return;
+      if existing_path == path_str {
+        return; // Already correctly registered
       }
+
+      // Path differs, update it
+      println!("Updating startup path from '{}' to '{}'", existing_path, path_str);
     }
     Ok(false) => {
+      // Not in startup, ask user permission
       match win32utils::dialog(
         "Steam Screenshot Organizer",
         "Would you like to add Steam Screenshot Organizer to startup?",
@@ -265,15 +288,15 @@ fn add_to_startup() {
       }
     }
     Err(error) => {
-      eprintln!("Failed to check registry key: {}", error.to_string());
+      eprintln!("Failed to check startup registry: {}", error.to_string());
       return;
     }
   }
 
-  let path = std::env::current_exe().unwrap();
-
-  if win32utils::registry::write_string(win32utils::registry::HKEY::CurrentUser, &subkey, &name, path.to_string_lossy()).is_err() {
-    eprintln!("Failed to write registry key");
+  // Write to registry with error handling
+  match win32utils::registry::write_string(win32utils::registry::HKEY::CurrentUser, subkey, name, path_str) {
+    Ok(()) => println!("Successfully added to startup"),
+    Err(error) => eprintln!("Failed to add to startup registry: {}", error.to_string()),
   }
 }
 
