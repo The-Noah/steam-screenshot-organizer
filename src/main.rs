@@ -41,7 +41,7 @@ fn main() {
       let updated = update_handler::update();
       #[cfg(debug_assertions)]
       let updated = false;
-      
+
       if updated {
         #[cfg(target_os = "windows")]
         win32utils::dialog(
@@ -73,7 +73,7 @@ fn main() {
         let version = update_handler::get_current_version();
         #[cfg(debug_assertions)]
         let version = format!("v{}", env!("CARGO_PKG_VERSION"));
-        
+
         println!("{} {}", env!("CARGO_PKG_NAME"), version);
         println!();
         println!("Usage:");
@@ -93,10 +93,10 @@ fn main() {
       "info" => {
         let steam_id = steam::get_id();
         let steam_id3 = steam_id.map(steam::id_to_id3);
-        
+
         #[cfg(not(debug_assertions))]
         let latest_version = update_handler::get_latest_version();
-        
+
         #[cfg(not(debug_assertions))]
         let current_version = update_handler::get_current_version();
         #[cfg(debug_assertions)]
@@ -131,7 +131,7 @@ fn main() {
         } else {
           println!("Failed to check for updates");
         }
-        
+
         #[cfg(debug_assertions)]
         println!("Update checking disabled in debug builds");
       }

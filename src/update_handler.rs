@@ -101,7 +101,6 @@ fn secure_download(url: &str) -> Result<Vec<u8>, UpdateError> {
   Ok(content)
 }
 
-
 pub fn is_up_to_date(current: &str, new: &str) -> bool {
   let current = current.trim_start_matches('v');
   let new = new.trim_start_matches('v');
