@@ -29,7 +29,7 @@ features = [
 winresource = "0.1"
 
 [package.metadata.winresource]
-LegalCopyright = "Copyright (c) 2024 Noah Dunbar"
+LegalCopyright = "Copyright (c) 2024-2025 Noah Dunbar"
 
 [profile.release]
 lto = true
