@@ -3,6 +3,7 @@ use std::{fs, sync::mpsc, thread, time::Duration};
 use notify::{Config, RecommendedWatcher, Watcher};
 
 mod steam;
+#[cfg(not(debug_assertions))]
 mod update_handler;
 
 fn main() {
@@ -36,7 +37,12 @@ fn main() {
         }
       }
 
-      if update_handler::update() {
+      #[cfg(not(debug_assertions))]
+      let updated = update_handler::update();
+      #[cfg(debug_assertions)]
+      let updated = false;
+      
+      if updated {
         #[cfg(target_os = "windows")]
         win32utils::dialog(
           "Steam Screenshot Organizer",
@@ -63,7 +69,12 @@ fn main() {
   } else {
     match args[0].as_str() {
       "help" | "--help" | "-h" => {
-        println!("{} {}", env!("CARGO_PKG_NAME"), update_handler::get_current_version());
+        #[cfg(not(debug_assertions))]
+        let version = update_handler::get_current_version();
+        #[cfg(debug_assertions)]
+        let version = format!("v{}", env!("CARGO_PKG_VERSION"));
+        
+        println!("{} {}", env!("CARGO_PKG_NAME"), version);
         println!();
         println!("Usage:");
         println!("  {} [command]", env!("CARGO_PKG_NAME"));
@@ -82,9 +93,16 @@ fn main() {
       "info" => {
         let steam_id = steam::get_id();
         let steam_id3 = steam_id.map(steam::id_to_id3);
+        
+        #[cfg(not(debug_assertions))]
         let latest_version = update_handler::get_latest_version();
+        
+        #[cfg(not(debug_assertions))]
+        let current_version = update_handler::get_current_version();
+        #[cfg(debug_assertions)]
+        let current_version = format!("v{}", env!("CARGO_PKG_VERSION"));
 
-        println!("{} {}", env!("CARGO_PKG_NAME"), update_handler::get_current_version());
+        println!("{} {}", env!("CARGO_PKG_NAME"), current_version);
         println!();
         println!("Steam ID: {}", if let Some(steam_id) = steam_id { steam_id.to_string() } else { "Not found".to_string() });
         println!("Steam screenshots directory: {}", steam::get_screenshots_directory().display());
@@ -96,27 +114,34 @@ fn main() {
             0
           }
         );
+        #[cfg(not(debug_assertions))]
         if let Ok(latest_version) = latest_version {
           println!(
             "Update available: {}",
-            if update_handler::is_up_to_date(&update_handler::get_current_version(), &latest_version) {
+            if update_handler::is_up_to_date(&current_version, &latest_version) {
               "No"
             } else {
               "Yes"
             }
           );
-          if !update_handler::is_up_to_date(&update_handler::get_current_version(), &latest_version) {
+          if !update_handler::is_up_to_date(&current_version, &latest_version) {
             println!("Current version: v{}", env!("CARGO_PKG_VERSION"));
             println!("Latest version: {latest_version}");
           }
         } else {
-          print!("Failed to check for updates");
+          println!("Failed to check for updates");
         }
+        
+        #[cfg(debug_assertions)]
+        println!("Update checking disabled in debug builds");
       }
       "run" => run(),
       "watch" => watch(),
       "update" => {
+        #[cfg(not(debug_assertions))]
         update_handler::update();
+        #[cfg(debug_assertions)]
+        println!("Update functionality disabled in debug builds");
       }
       _ => println!("Invalid command."),
     }
@@ -216,7 +241,7 @@ fn has_console_window() -> bool {
   console_pid != std::process::id()
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "windows"))]
 fn has_console_window() -> bool {
   todo!("has_console_window");
 }
@@ -237,7 +262,7 @@ fn hide_console_window() {
   unsafe { FreeConsole().unwrap() };
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "windows"))]
 fn hide_console_window() {
   todo!("hide_console_window");
 }
@@ -300,7 +325,7 @@ fn add_to_startup() {
   }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "windows"))]
 fn add_to_startup() {
   todo!("add_to_startup");
 }

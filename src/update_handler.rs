@@ -3,7 +3,6 @@ use std::io::Read;
 
 use reqwest::{header::USER_AGENT, Method};
 use serde::Deserialize;
-use sha2::Digest;
 use tempfile::NamedTempFile;
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -19,6 +18,7 @@ struct Asset {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum UpdateError {
   NetworkError(reqwest::Error),
   IoError(std::io::Error),
@@ -101,6 +101,7 @@ fn secure_download(url: &str) -> Result<Vec<u8>, UpdateError> {
   Ok(content)
 }
 
+
 pub fn is_up_to_date(current: &str, new: &str) -> bool {
   let current = current.trim_start_matches('v');
   let new = new.trim_start_matches('v');
@@ -135,7 +136,7 @@ fn atomic_replace_executable(new_content: &[u8]) -> Result<(), UpdateError> {
   // Ensure all data is written to disk
   temp_file.flush()?;
 
-  let temp_path = temp_file.path().to_owned();
+  let _temp_path = temp_file.path().to_owned();
 
   // Create backup of current executable
   let backup_path = current_exe.with_extension("bak");
