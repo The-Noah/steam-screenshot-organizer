@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.6.0](https://github.com/The-Noah/steam-screenshot-organizer/releases/tag/v0.6.0) - 2025-08-02
+### Details
+#### Added
+- Add unwinding to release build by @The-Noah
+- Add tray icon by @The-Noah
+
+#### Changed
+- Update README by @The-Noah
+- Update README by @The-Noah
+- Use win32utils by @The-Noah
+- Use win32utils for accessing registry by @The-Noah
+- Kill old process if already running by @The-Noah
+- Make comments consistent by @The-Noah
+- Update startup path when neede by @The-Noah
+- Improve Windows resource generation by @The-Noah
+- Update startup path without prompting by @The-Noah
+- Update README by @The-Noah
+- Improve self updater by @The-Noah
+- Update copyright year by @The-Noah
+
+#### Fixed
+- Clippy warnings by @The-Noah
+- Clippy warnings by @The-Noah
+- Format code by @The-Noah
+
 ## [v0.5.0](https://github.com/The-Noah/steam-screenshot-organizer/releases/tag/v0.5.0) - 2024-07-23
 
 ### Details
