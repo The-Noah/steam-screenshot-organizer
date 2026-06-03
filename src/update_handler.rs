@@ -82,9 +82,10 @@ fn secure_download(url: &str) -> Result<Vec<u8>, UpdateError> {
 
   let response = client.get(url).header(USER_AGENT, "steam-screenshot-manager").send()?;
 
-  if !response.status().is_success() {
-    return Err(UpdateError::NetworkError(response.error_for_status().unwrap_err()));
-  }
+  let response = match response.error_for_status() {
+    Ok(response) => response,
+    Err(err) => return Err(UpdateError::NetworkError(err)),
+  };
 
   let content_length = response.content_length().unwrap_or(0);
   if content_length > MAX_EXECUTABLE_SIZE {
@@ -105,8 +106,8 @@ pub fn is_up_to_date(current: &str, new: &str) -> bool {
   let current = current.trim_start_matches('v');
   let new = new.trim_start_matches('v');
 
-  let current: Vec<u32> = current.split('.').map(|s| s.parse().unwrap()).collect();
-  let new: Vec<u32> = new.split('.').map(|s| s.parse().unwrap()).collect();
+  let current: Vec<u32> = current.split('.').filter_map(|s| s.parse().ok()).collect();
+  let new: Vec<u32> = new.split('.').filter_map(|s| s.parse().ok()).collect();
 
   for (current, new) in current.iter().zip(new.iter()) {
     match current.cmp(new) {

@@ -76,13 +76,11 @@ pub fn get_online_app_info(app_id: u64) -> Option<String> {
 pub fn get_screenshots() -> Vec<PathBuf> {
   let mut files = Vec::new();
 
-  for file in fs::read_dir(get_screenshots_directory()).unwrap().collect::<Vec<_>>() {
-    if file.is_err() {
-      continue;
-    }
+  let Ok(entries) = fs::read_dir(get_screenshots_directory()) else {
+    return files;
+  };
 
-    let file = file.unwrap();
-
+  for file in entries.flatten() {
     if !file.path().is_file() {
       continue;
     }
@@ -103,14 +101,13 @@ pub fn get_app_info(app_id: u64) -> Option<String> {
       continue;
     }
 
-    let app_info = fs::read_to_string(app_info);
-
-    if let Err(error) = app_info {
-      eprintln!("Error reading app info: {error}");
-      break;
-    }
-
-    let app_info = app_info.unwrap();
+    let app_info = match fs::read_to_string(app_info) {
+      Ok(app_info) => app_info,
+      Err(error) => {
+        eprintln!("Error reading app info: {error}");
+        break;
+      }
+    };
 
     let app_info = app_info.split('\n').collect::<Vec<_>>();
 
@@ -145,14 +142,19 @@ pub fn get_screenshots_directory() -> PathBuf {
         let line = line.trim();
 
         if line.starts_with("\"InGameOverlayScreenshotSaveUncompressedPath\"") {
-          return path::absolute(PathBuf::from(line.split('"').nth(3).unwrap())).unwrap();
+          if let Some(path) = line.split('"').nth(3) {
+            if let Ok(absolute) = path::absolute(PathBuf::from(path)) {
+              return absolute;
+            }
+          }
         }
       }
     }
   }
 
   #[allow(deprecated)]
-  PathBuf::from(std::env::home_dir().unwrap().to_string_lossy().to_string())
+  std::env::home_dir()
+    .unwrap_or_default()
     .join("Pictures")
     .join("Steam Screenshots")
 }
@@ -167,14 +169,19 @@ pub fn get_screenshots_directory() -> PathBuf {
         let line = line.trim();
 
         if line.starts_with("\"InGameOverlayScreenshotSaveUncompressedPath\"") {
-          return std::path::absolute(PathBuf::from(line.split('"').nth(3).unwrap())).unwrap();
+          if let Some(path) = line.split('"').nth(3) {
+            if let Ok(absolute) = std::path::absolute(PathBuf::from(path)) {
+              return absolute;
+            }
+          }
         }
       }
     }
   }
 
   #[allow(deprecated)]
-  PathBuf::from(std::env::home_dir().unwrap().to_string_lossy().to_string())
+  std::env::home_dir()
+    .unwrap_or_default()
     .join("Pictures")
     .join("Steam Screenshots")
 }

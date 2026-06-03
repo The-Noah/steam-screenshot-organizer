@@ -17,7 +17,7 @@ fn main() {
       hide_console_window();
       add_to_startup();
 
-      let current_exe = std::env::current_exe().unwrap();
+      let current_exe = std::env::current_exe().expect("failed to get current executable path");
 
       // kill any existing instances of the program with same path
       let current_exe_path = current_exe.to_string_lossy().to_string();
@@ -53,7 +53,7 @@ fn main() {
 
         let args = args.to_vec();
         thread::spawn(move || {
-          std::process::Command::new(current_exe).args(args).status().unwrap();
+          std::process::Command::new(current_exe).args(args).status().expect("failed to restart after update");
         });
 
         // ensure the new process has time to start
@@ -151,7 +151,19 @@ fn run() {
   let mut screenshots_moved = 0;
 
   for screenshot in &screenshots {
-    let game_id = screenshot.file_name().unwrap().to_string_lossy().split('_').next().unwrap().parse::<u64>().unwrap();
+    let Some(file_name) = screenshot.file_name() else {
+      continue;
+    };
+
+    let file_name_lossy = file_name.to_string_lossy();
+
+    let Some(id_part) = file_name_lossy.split('_').next() else {
+      continue;
+    };
+
+    let Ok(game_id) = id_part.parse::<u64>() else {
+      continue;
+    };
 
     let game_name = if let Some(game_name) = steam::get_app_info(game_id) {
       game_name
@@ -178,15 +190,15 @@ fn run() {
     }
 
     // move screenshot to game directory
-    let new_screenshot = game_directory.join(screenshot.file_name().unwrap());
+    let new_screenshot = game_directory.join(file_name);
     if let Err(error) = fs::rename(screenshot, new_screenshot) {
-      eprintln!("Error moving {}: {}", screenshot.file_name().unwrap().to_string_lossy(), error);
+      eprintln!("Error moving {}: {}", file_name_lossy, error);
       continue;
     }
 
     screenshots_moved += 1;
 
-    println!("Moved {} to {}", screenshot.file_name().unwrap().to_string_lossy(), &game_name);
+    println!("Moved {} to {}", file_name_lossy, &game_name);
   }
 
   println!("Moved {}/{} screenshots", screenshots_moved, screenshots.len());
@@ -197,9 +209,11 @@ fn watch() {
 
   let (tx, rx) = mpsc::channel();
 
-  let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
+  let mut watcher = RecommendedWatcher::new(tx, Config::default()).expect("failed to create file watcher");
 
-  watcher.watch(&steam::get_screenshots_directory(), notify::RecursiveMode::NonRecursive).unwrap();
+  watcher
+    .watch(&steam::get_screenshots_directory(), notify::RecursiveMode::NonRecursive)
+    .expect("failed to watch screenshots directory");
 
   for event in rx {
     match event {
@@ -242,12 +256,14 @@ fn hide_console_window() {
   };
 
   unsafe {
-    SetStdHandle(STD_INPUT_HANDLE, HANDLE(std::ptr::null_mut())).unwrap();
-    SetStdHandle(STD_OUTPUT_HANDLE, HANDLE(std::ptr::null_mut())).unwrap();
-    SetStdHandle(STD_ERROR_HANDLE, HANDLE(std::ptr::null_mut())).unwrap();
+    SetStdHandle(STD_INPUT_HANDLE, HANDLE(std::ptr::null_mut())).ok();
+    SetStdHandle(STD_OUTPUT_HANDLE, HANDLE(std::ptr::null_mut())).ok();
+    SetStdHandle(STD_ERROR_HANDLE, HANDLE(std::ptr::null_mut())).ok();
   }
 
-  unsafe { FreeConsole().unwrap() };
+  unsafe {
+    FreeConsole().ok();
+  }
 }
 
 #[cfg(not(target_os = "windows"))]
