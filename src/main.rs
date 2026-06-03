@@ -59,6 +59,7 @@ fn main() {
         // ensure the new process has time to start
         thread::sleep(Duration::from_secs(5));
       } else {
+        #[cfg(target_os = "windows")]
         thread::spawn(|| {
           win32utils::shell::tray_icon("Steam Screenshot Manager");
         });
@@ -243,7 +244,9 @@ fn has_console_window() -> bool {
 
 #[cfg(not(target_os = "windows"))]
 fn has_console_window() -> bool {
-  todo!("has_console_window");
+  use std::io::IsTerminal;
+
+  std::io::stdout().is_terminal()
 }
 
 #[cfg(target_os = "windows")]
@@ -264,7 +267,7 @@ fn hide_console_window() {
 
 #[cfg(not(target_os = "windows"))]
 fn hide_console_window() {
-  todo!("hide_console_window");
+  // no console to detach from on non-Windows platforms
 }
 
 #[cfg(target_os = "windows")]
@@ -327,5 +330,46 @@ fn add_to_startup() {
 
 #[cfg(not(target_os = "windows"))]
 fn add_to_startup() {
-  todo!("add_to_startup");
+  // Get current executable path with error handling
+  let current_path = match std::env::current_exe() {
+    Ok(path) => path,
+    Err(e) => {
+      eprintln!("Failed to get current executable path: {e}");
+      return;
+    }
+  };
+
+  #[allow(deprecated)]
+  let home = match std::env::home_dir() {
+    Some(home) => home,
+    None => {
+      eprintln!("Failed to get home directory");
+      return;
+    }
+  };
+
+  // XDG autostart entry is the Linux equivalent of the Windows Run key
+  let autostart_dir = home.join(".config").join("autostart");
+  if let Err(e) = fs::create_dir_all(&autostart_dir) {
+    eprintln!("Failed to create autostart directory: {e}");
+    return;
+  }
+
+  let desktop_file = autostart_dir.join("steam-screenshot-organizer.desktop");
+  let contents = format!(
+    "[Desktop Entry]\nType=Application\nName=Steam Screenshot Organizer\nExec=\"{}\"\nX-GNOME-Autostart-enabled=true\nNoDisplay=true\n",
+    current_path.to_string_lossy()
+  );
+
+  // Skip writing if already correctly registered
+  if let Ok(existing) = fs::read_to_string(&desktop_file) {
+    if existing == contents {
+      return;
+    }
+  }
+
+  match fs::write(&desktop_file, contents) {
+    Ok(()) => println!("Successfully added to startup"),
+    Err(e) => eprintln!("Failed to add to startup: {e}"),
+  }
 }

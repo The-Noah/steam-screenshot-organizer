@@ -1,4 +1,7 @@
-use std::{fs, path, path::Path, path::PathBuf};
+use std::{fs, path::PathBuf};
+
+#[cfg(target_os = "windows")]
+use std::path::{self, Path};
 
 use serde::Deserialize;
 
@@ -22,16 +25,31 @@ struct GamesList {
   pub games: Games,
 }
 
+#[cfg(target_os = "windows")]
+fn steam_root() -> Option<PathBuf> {
+  Some(PathBuf::from(r#"C:\Program Files (x86)\Steam"#))
+}
+
+#[cfg(target_os = "linux")]
+fn steam_root() -> Option<PathBuf> {
+  #[allow(deprecated)]
+  let home = std::env::home_dir()?;
+
+  [
+    home.join(".steam").join("steam"),
+    home.join(".local").join("share").join("Steam"),
+    home.join(".var").join("app").join("com.valvesoftware.Steam").join(".local").join("share").join("Steam"),
+  ]
+  .into_iter()
+  .find(|path| path.exists())
+}
+
 pub fn get_id() -> Option<u64> {
-  let directories = fs::read_dir(r#"C:\Program Files (x86)\Steam\userdata"#).unwrap().collect::<Vec<_>>();
+  let userdata = steam_root()?.join("userdata");
 
-  for directory in directories {
-    if directory.is_err() {
-      continue;
-    }
+  let directories = fs::read_dir(userdata).ok()?;
 
-    let directory = directory.unwrap();
-
+  for directory in directories.flatten() {
     if !directory.path().is_dir() {
       continue;
     }
@@ -148,6 +166,20 @@ pub fn get_screenshots_directory() -> PathBuf {
 
 #[cfg(target_os = "linux")]
 pub fn get_screenshots_directory() -> PathBuf {
+  if let (Some(steam_id), Some(root)) = (get_id(), steam_root()) {
+    let steam_config_path = root.join("userdata").join(steam_id.to_string()).join("config").join("localconfig.vdf");
+
+    if let Ok(steam_config) = std::fs::read_to_string(steam_config_path) {
+      for line in steam_config.lines() {
+        let line = line.trim();
+
+        if line.starts_with("\"InGameOverlayScreenshotSaveUncompressedPath\"") {
+          return std::path::absolute(PathBuf::from(line.split('"').nth(3).unwrap())).unwrap();
+        }
+      }
+    }
+  }
+
   #[allow(deprecated)]
   PathBuf::from(std::env::home_dir().unwrap().to_string_lossy().to_string())
     .join("Pictures")
@@ -184,6 +216,31 @@ fn get_app_directories() -> Vec<PathBuf> {
 }
 
 #[cfg(target_os = "linux")]
-fn get_app_directories() {
-  todo!("get_app_directories");
+fn get_app_directories() -> Vec<PathBuf> {
+  let mut directories = Vec::new();
+
+  if let Some(root) = steam_root() {
+    let steamapps = root.join("steamapps");
+
+    // additional library folders are listed in libraryfolders.vdf
+    if let Ok(library_folders) = fs::read_to_string(steamapps.join("libraryfolders.vdf")) {
+      for line in library_folders.lines() {
+        let line = line.trim();
+
+        if line.starts_with("\"path\"") {
+          if let Some(path) = line.split('"').nth(3) {
+            let library = PathBuf::from(path).join("steamapps");
+
+            if library != steamapps && library.exists() {
+              directories.push(library);
+            }
+          }
+        }
+      }
+    }
+
+    directories.push(steamapps);
+  }
+
+  directories
 }
