@@ -78,8 +78,8 @@ jobs:
     strategy:
       matrix:
         include:
-          # - target: x86_64-unknown-linux-gnu
-          #   os: ubuntu-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
           - target: x86_64-pc-windows-msvc
             os: windows-latest
 
@@ -106,7 +106,8 @@ jobs:
           default: true
           override: true
 
-      - name: Add RC.exe to PATH and build
+      - name: Add RC.exe to PATH and build (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
         run: |
           function Invoke-VSDevEnvironment {
               $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -121,6 +122,10 @@ jobs:
           Invoke-VSDevEnvironment
           Get-Command rc.exe | Format-Table -AutoSize
           cargo build --verbose --release
+
+      - name: Build (Linux)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: cargo build --verbose --release
 
       - name: Get Windows binary extension
         id: get_extension
