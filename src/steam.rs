@@ -153,10 +153,7 @@ pub fn get_screenshots_directory() -> PathBuf {
   }
 
   #[allow(deprecated)]
-  std::env::home_dir()
-    .unwrap_or_default()
-    .join("Pictures")
-    .join("Steam Screenshots")
+  std::env::home_dir().unwrap_or_default().join("Pictures").join("Steam Screenshots")
 }
 
 #[cfg(target_os = "linux")]
@@ -180,10 +177,7 @@ pub fn get_screenshots_directory() -> PathBuf {
   }
 
   #[allow(deprecated)]
-  std::env::home_dir()
-    .unwrap_or_default()
-    .join("Pictures")
-    .join("Steam Screenshots")
+  std::env::home_dir().unwrap_or_default().join("Pictures").join("Steam Screenshots")
 }
 
 #[cfg(target_os = "windows")]
