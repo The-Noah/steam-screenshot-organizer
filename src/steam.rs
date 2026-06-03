@@ -3,26 +3,19 @@ use std::{fs, path::PathBuf};
 #[cfg(target_os = "windows")]
 use std::path::{self, Path};
 
+use std::collections::HashMap;
+
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct Game {
-  #[serde(rename = "appID")]
-  pub app_id: u64,
-  #[serde(rename = "name")]
+#[derive(Debug, Deserialize)]
+struct AppDetailsData {
   pub name: String,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-struct Games {
-  #[serde(rename = "game")]
-  pub games: Vec<Game>,
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename = "gamesList")]
-struct GamesList {
-  pub games: Games,
+#[derive(Debug, Deserialize)]
+struct AppDetails {
+  pub success: bool,
+  pub data: Option<AppDetailsData>,
 }
 
 #[cfg(target_os = "windows")]
@@ -66,18 +59,18 @@ pub fn get_id() -> Option<u64> {
   None
 }
 
-pub fn id_to_id3(steam_id: u64) -> String {
-  format!("[U:1:{steam_id}]")
-}
+/// Fetch a game's name from the Steam Web API by app ID.
+pub fn get_online_app_info(app_id: u64) -> Option<String> {
+  let response = reqwest::blocking::get(format!("https://store.steampowered.com/api/appdetails?appids={app_id}")).ok()?;
 
-pub fn get_online_library(steam_id3: &String) -> Vec<Game> {
-  let games = reqwest::blocking::get(format!("https://steamcommunity.com/profiles/{steam_id3}/games?xml=1"))
-    .unwrap()
-    .text()
-    .unwrap();
+  let mut details: HashMap<String, AppDetails> = response.json().ok()?;
+  let details = details.remove(&app_id.to_string())?;
 
-  let games: GamesList = serde_xml_rs::from_str(&games).unwrap();
-  games.games.games
+  if !details.success {
+    return None;
+  }
+
+  details.data.map(|data| data.name)
 }
 
 pub fn get_screenshots() -> Vec<PathBuf> {

@@ -93,7 +93,6 @@ fn main() {
       }
       "info" => {
         let steam_id = steam::get_id();
-        let steam_id3 = steam_id.map(steam::id_to_id3);
 
         #[cfg(not(debug_assertions))]
         let latest_version = update_handler::get_latest_version();
@@ -107,14 +106,6 @@ fn main() {
         println!();
         println!("Steam ID: {}", if let Some(steam_id) = steam_id { steam_id.to_string() } else { "Not found".to_string() });
         println!("Steam screenshots directory: {}", steam::get_screenshots_directory().display());
-        println!(
-          "Online Steam library: {} games found",
-          if let Some(steam_id3) = steam_id3 {
-            steam::get_online_library(&steam_id3).len()
-          } else {
-            0
-          }
-        );
         #[cfg(not(debug_assertions))]
         if let Ok(latest_version) = latest_version {
           println!(
@@ -154,8 +145,8 @@ fn run() {
 
   println!("Found {} screenshots", screenshots.len());
 
-  let steam_id = steam::get_id();
-  let mut online_library = None;
+  // cache online lookups so each game is only fetched once
+  let mut online_cache: std::collections::HashMap<u64, Option<String>> = std::collections::HashMap::new();
 
   let mut screenshots_moved = 0;
 
@@ -165,19 +156,13 @@ fn run() {
     let game_name = if let Some(game_name) = steam::get_app_info(game_id) {
       game_name
     } else {
-      if steam_id.is_some() && online_library.is_none() {
-        println!("Fetching online library");
-        online_library = Some(steam::get_online_library(&steam::id_to_id3(steam_id.unwrap())));
-      }
+      let online_name = online_cache.entry(game_id).or_insert_with(|| {
+        println!("Fetching info for app {game_id}");
+        steam::get_online_app_info(game_id)
+      });
 
-      if let Some(online_library) = &online_library {
-        let game = online_library.iter().find(|game| game.app_id == game_id);
-
-        if let Some(game) = game {
-          game.name.clone()
-        } else {
-          continue;
-        }
+      if let Some(game_name) = online_name {
+        game_name.clone()
       } else {
         continue;
       }
