@@ -11,7 +11,7 @@ Your screenshot folder is automatically detected from Steam, which you can chang
 3. Run the executable. It will run in the background and organize your screenshots. It will also organize new screenshots as you take them.
 4. After running the executable you will be given the option to enable automatically running at startup. If you do not enable this, you must rerun the executable whenever you reboot.
 
-Currently only supports Windows. Linux and MacOS will eventually be supported.
+Designed for Windows. Linux is experimental and MacOS is unsupported.
 
 ## Building
 
