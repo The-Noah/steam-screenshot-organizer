@@ -140,6 +140,22 @@ fn main() {
   }
 }
 
+fn sanitize_directory_name(name: &str) -> String {
+  let cleaned: String = name
+    .chars()
+    .map(|c| match c {
+      '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*' => ' ',
+      c if (c as u32) < 0x20 => ' ',
+      c => c,
+    })
+    .collect();
+
+  // collapse repeated whitespace introduced by replacement, then trim
+  // trailing dots/spaces which Windows also disallows.
+  let collapsed = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+  collapsed.trim_matches(|c| c == '.' || c == ' ').to_string()
+}
+
 fn run() {
   let screenshots = steam::get_screenshots();
 
@@ -181,7 +197,8 @@ fn run() {
     };
 
     // ensure game directory exists
-    let game_directory = steam::get_screenshots_directory().join(&game_name);
+    let safe_game_name = sanitize_directory_name(&game_name);
+    let game_directory = steam::get_screenshots_directory().join(&safe_game_name);
     if !game_directory.exists() {
       if let Err(error) = fs::create_dir(&game_directory) {
         eprintln!("Error creating game directory {}: {}", game_directory.display(), error);
